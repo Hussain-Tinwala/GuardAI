@@ -3,7 +3,7 @@ import { io } from 'socket.io-client';
 import { ShieldCheck, ShieldAlert, Activity, PhoneCall, Clock, CheckCircle2, AlertTriangle, Send, RefreshCw, Radio } from 'lucide-react';
 
 // Connect to backend Socket.io
-const SOCKET_URL = 'http://localhost:4000';
+const SOCKET_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000';
 
 export default function App() {
   const [metrics, setMetrics] = useState({
