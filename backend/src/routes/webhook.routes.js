@@ -5,10 +5,19 @@ const decisionEngine = require('../services/decision.engine');
 const guardrail = require('../services/guardrail');
 const queueService = require('../services/queue');
 const contextPackager = require('../services/context.packager');
+const logger = require('../services/logger');
 
 router.post('/dnd/toggle', async (req, res) => {
     const { userId, isDND } = req.body;
     await guardrail.setDND(userId, isDND);
+    
+    logger.logEvent({
+        userId,
+        stage: 'SYSTEM',
+        status: isDND ? 'DND_ENABLED' : 'DND_DISABLED',
+        metadata: { isDND }
+    });
+
     res.json({ success: true, userId, dndStatus: isDND });
 });
 
@@ -16,7 +25,14 @@ router.post('/kipps-chat', async (req, res) => {
     try {
         const chatEvent = req.body;
         const userId = chatEvent.userId || 'unknown_user';
-        console.log(`\n[WEBHOOK] --- New Chat Event: ${userId} ---`);
+        
+        // Stage 1: Received
+        logger.logEvent({
+            userId,
+            stage: 'RECEIVED',
+            status: 'RECEIVED',
+            metadata: { transcript: chatEvent.transcript || '', metadata: chatEvent.metadata }
+        });
 
         const context = {
             userId: userId,
@@ -27,32 +43,62 @@ router.post('/kipps-chat', async (req, res) => {
             transcript: chatEvent.transcript || ''
         };
 
+        // Stage 2: Decision Engine
         const decision = await decisionEngine.evaluateEscalation(context);
-        console.log(`[DECISION] Action: ${decision.action} | Reason: ${decision.reason}`);
+        
+        logger.logEvent({
+            userId,
+            stage: 'DECISION',
+            status: decision.action,
+            metadata: { reason: decision.reason, priorityScore: decision.priorityScore }
+        });
 
         if (decision.action === 'ESCALATE') {
             
-            console.log(`[GUARDRAIL] Evaluating compliance for ${userId}...`);
+            // Stage 3: Guardrail Check
             const complianceCheck = await guardrail.checkCompliance(userId);
-            console.log(`[GUARDRAIL] Status: ${complianceCheck.status} | Reason: ${complianceCheck.reason}`);
+            
+            logger.logEvent({
+                userId,
+                stage: 'GUARDRAIL',
+                status: complianceCheck.status,
+                metadata: { reason: complianceCheck.reason }
+            });
 
-            // NEW: Build the voice context payload
+            // Build packaged voice context
             const voicePayload = await contextPackager.buildVoiceContext(chatEvent, decision);
 
             if (complianceCheck.allowed) {
-                console.log(`[PIPELINE] Context packaged. Triggering call...`);
-                // Pass the enriched payload to the Voice Agent
+                // Trigger Voice Call directly
                 const callRes = await kippsApi.triggerVoiceCall(userId, voicePayload);
                 await guardrail.logOutboundAttempt(userId);
-                console.log(`[PIPELINE] Call queued successfully. ID: ${callRes.callId}`);
                 
+                logger.logEvent({
+                    userId,
+                    stage: 'EXECUTION',
+                    status: 'CALL_TRIGGERED',
+                    metadata: { callId: callRes.callId, summary: voicePayload.voicePayload.userSummary }
+                });
+
             } else if (complianceCheck.status === 'QUEUED_FOR_WINDOW') {
-                console.log(`[PIPELINE] Quiet hours detected. Enqueuing with context for the morning.`);
-                // Enqueue the enriched payload
-                await queueService.enqueueEscalation(userId, voicePayload);
+                // Enqueue for compliant window
+                const job = await queueService.enqueueEscalation(userId, voicePayload);
                 
+                logger.logEvent({
+                    userId,
+                    stage: 'QUEUED',
+                    status: 'QUEUED_FOR_WINDOW',
+                    metadata: { jobId: job.id, reason: complianceCheck.reason }
+                });
+
             } else {
-                console.log(`[PIPELINE] Escalation permanently halted by Guardrail.`);
+                // Blocked by DND or Frequency Capping
+                logger.logEvent({
+                    userId,
+                    stage: 'HALTED',
+                    status: complianceCheck.status,
+                    metadata: { reason: complianceCheck.reason }
+                });
             }
 
             return res.status(200).json({
@@ -60,11 +106,15 @@ router.post('/kipps-chat', async (req, res) => {
                 decision: decision.action,
                 compliance: complianceCheck.status,
                 message: complianceCheck.reason,
-                packagedContext: voicePayload.voicePayload.userSummary // sending back for demo visibility
+                packagedContext: voicePayload.voicePayload.userSummary
             });
 
         } else {
-            return res.status(200).json({ success: true, decision: decision.action, message: decision.reason });
+            return res.status(200).json({
+                success: true,
+                decision: decision.action,
+                message: decision.reason
+            });
         }
 
     } catch (error) {
