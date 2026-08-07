@@ -1,0 +1,10 @@
+{
+  "name": "dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo \"Dashboard dev starting later\"",
+    "build": "echo \"Dashboard build later\"",
+    "test": "echo \"Error: no test specified\" && exit 0"
+  }
+}
