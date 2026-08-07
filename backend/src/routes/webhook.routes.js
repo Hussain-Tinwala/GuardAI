@@ -4,6 +4,7 @@ const kippsApi = require('../adapters/kipps');
 const decisionEngine = require('../services/decision.engine');
 const guardrail = require('../services/guardrail');
 const queueService = require('../services/queue');
+const contextPackager = require('../services/context.packager');
 
 router.post('/dnd/toggle', async (req, res) => {
     const { userId, isDND } = req.body;
@@ -35,20 +36,22 @@ router.post('/kipps-chat', async (req, res) => {
             const complianceCheck = await guardrail.checkCompliance(userId);
             console.log(`[GUARDRAIL] Status: ${complianceCheck.status} | Reason: ${complianceCheck.reason}`);
 
+            // NEW: Build the voice context payload
+            const voicePayload = await contextPackager.buildVoiceContext(chatEvent, decision);
+
             if (complianceCheck.allowed) {
-                // Immediate Execution
-                console.log(`[PIPELINE] Escalation approved. Triggering call...`);
-                const callRes = await kippsApi.triggerVoiceCall(userId, { reason: decision.reason });
+                console.log(`[PIPELINE] Context packaged. Triggering call...`);
+                // Pass the enriched payload to the Voice Agent
+                const callRes = await kippsApi.triggerVoiceCall(userId, voicePayload);
                 await guardrail.logOutboundAttempt(userId);
                 console.log(`[PIPELINE] Call queued successfully. ID: ${callRes.callId}`);
                 
             } else if (complianceCheck.status === 'QUEUED_FOR_WINDOW') {
-                // It's quiet hours, put it in the queue for the morning!
-                console.log(`[PIPELINE] Quiet hours detected. Enqueuing for the next compliant window.`);
-                await queueService.enqueueEscalation(userId, { reason: decision.reason });
+                console.log(`[PIPELINE] Quiet hours detected. Enqueuing with context for the morning.`);
+                // Enqueue the enriched payload
+                await queueService.enqueueEscalation(userId, voicePayload);
                 
             } else {
-                // Blocked due to DND or Frequency Capping (drop it entirely)
                 console.log(`[PIPELINE] Escalation permanently halted by Guardrail.`);
             }
 
@@ -56,7 +59,8 @@ router.post('/kipps-chat', async (req, res) => {
                 success: true,
                 decision: decision.action,
                 compliance: complianceCheck.status,
-                message: complianceCheck.reason
+                message: complianceCheck.reason,
+                packagedContext: voicePayload.voicePayload.userSummary // sending back for demo visibility
             });
 
         } else {
