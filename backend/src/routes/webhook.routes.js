@@ -3,8 +3,8 @@ const router = express.Router();
 const kippsApi = require('../adapters/kipps');
 const decisionEngine = require('../services/decision.engine');
 const guardrail = require('../services/guardrail');
+const queueService = require('../services/queue');
 
-// Quick endpoint to toggle DND for demo purposes
 router.post('/dnd/toggle', async (req, res) => {
     const { userId, isDND } = req.body;
     await guardrail.setDND(userId, isDND);
@@ -17,7 +17,6 @@ router.post('/kipps-chat', async (req, res) => {
         const userId = chatEvent.userId || 'unknown_user';
         console.log(`\n[WEBHOOK] --- New Chat Event: ${userId} ---`);
 
-        // 1. Context Extraction
         const context = {
             userId: userId,
             retryCount: chatEvent.metadata?.retryCount || 0,
@@ -27,34 +26,30 @@ router.post('/kipps-chat', async (req, res) => {
             transcript: chatEvent.transcript || ''
         };
 
-        // 2. Decision Engine (Does this need human help?)
         const decision = await decisionEngine.evaluateEscalation(context);
         console.log(`[DECISION] Action: ${decision.action} | Reason: ${decision.reason}`);
 
         if (decision.action === 'ESCALATE') {
             
-            // 3. The Guardrail (Is it legal/compliant to call them now?)
             console.log(`[GUARDRAIL] Evaluating compliance for ${userId}...`);
             const complianceCheck = await guardrail.checkCompliance(userId);
-            
             console.log(`[GUARDRAIL] Status: ${complianceCheck.status} | Reason: ${complianceCheck.reason}`);
 
             if (complianceCheck.allowed) {
-                // Execute Call
-                console.log(`[PIPELINE] Escalation approved & compliant. Triggering call...`);
-                const callRes = await kippsApi.triggerVoiceCall(userId, {
-                    reason: decision.reason,
-                    priority: decision.priorityScore
-                });
-                
-                // Log that we attempted a call to enforce frequency caps
+                // Immediate Execution
+                console.log(`[PIPELINE] Escalation approved. Triggering call...`);
+                const callRes = await kippsApi.triggerVoiceCall(userId, { reason: decision.reason });
                 await guardrail.logOutboundAttempt(userId);
-                
                 console.log(`[PIPELINE] Call queued successfully. ID: ${callRes.callId}`);
+                
+            } else if (complianceCheck.status === 'QUEUED_FOR_WINDOW') {
+                // It's quiet hours, put it in the queue for the morning!
+                console.log(`[PIPELINE] Quiet hours detected. Enqueuing for the next compliant window.`);
+                await queueService.enqueueEscalation(userId, { reason: decision.reason });
+                
             } else {
-                // Blocked or Queued by Guardrail
-                console.log(`[PIPELINE] Escalation halted by Guardrail.`);
-                // If status is QUEUED_FOR_WINDOW, we would push to our Redis Priority Queue here (Phase 4)
+                // Blocked due to DND or Frequency Capping (drop it entirely)
+                console.log(`[PIPELINE] Escalation permanently halted by Guardrail.`);
             }
 
             return res.status(200).json({
@@ -65,12 +60,7 @@ router.post('/kipps-chat', async (req, res) => {
             });
 
         } else {
-            // RESOLVED or NEEDS_RETRY
-            return res.status(200).json({
-                success: true,
-                decision: decision.action,
-                message: decision.reason
-            });
+            return res.status(200).json({ success: true, decision: decision.action, message: decision.reason });
         }
 
     } catch (error) {
