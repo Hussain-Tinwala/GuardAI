@@ -2,17 +2,24 @@ const express = require('express');
 const router = express.Router();
 const kippsApi = require('../adapters/kipps');
 const decisionEngine = require('../services/decision.engine');
+const guardrail = require('../services/guardrail');
 
-// Webhook receiver for Kipps Chat Agent events
+// Quick endpoint to toggle DND for demo purposes
+router.post('/dnd/toggle', async (req, res) => {
+    const { userId, isDND } = req.body;
+    await guardrail.setDND(userId, isDND);
+    res.json({ success: true, userId, dndStatus: isDND });
+});
+
 router.post('/kipps-chat', async (req, res) => {
     try {
         const chatEvent = req.body;
-        console.log('\n[WEBHOOK] Received chat event for user:', chatEvent.userId);
+        const userId = chatEvent.userId || 'unknown_user';
+        console.log(`\n[WEBHOOK] --- New Chat Event: ${userId} ---`);
 
-        // 1. Extract metadata from the incoming chat event
-        // In reality, Kipps would send this. We default safely if missing.
+        // 1. Context Extraction
         const context = {
-            userId: chatEvent.userId || 'unknown_user',
+            userId: userId,
             retryCount: chatEvent.metadata?.retryCount || 0,
             sentimentScore: chatEvent.metadata?.sentimentScore || 0.5,
             botConfidence: chatEvent.metadata?.botConfidence || 0.9,
@@ -20,32 +27,51 @@ router.post('/kipps-chat', async (req, res) => {
             transcript: chatEvent.transcript || ''
         };
 
-        // 2. Run through the Decision Engine (Pipeline Stage 2)
+        // 2. Decision Engine (Does this need human help?)
         const decision = await decisionEngine.evaluateEscalation(context);
-        console.log(`[DECISION ENGINE] Outcome: ${decision.action} | Reason: ${decision.reason}`);
+        console.log(`[DECISION] Action: ${decision.action} | Reason: ${decision.reason}`);
 
-        // 3. Handle the Decision
         if (decision.action === 'ESCALATE') {
-            // PHASE 3 (Guardrail) will go here!
-            // For now, we naively trigger the call to test the pipeline
-            console.log(`[PIPELINE] Escalation approved. Triggering voice call...`);
-            const callRes = await kippsApi.triggerVoiceCall(context.userId, {
-                reason: decision.reason,
-                priority: decision.priorityScore
-            });
-            console.log(`[PIPELINE] Call queued with ID: ${callRes.callId}`);
-        } else if (decision.action === 'NEEDS_RETRY') {
-            console.log(`[PIPELINE] Routing back to Chat Agent for retry.`);
-            // In a real app, we might send a system prompt back to Kipps here
-        } else {
-            console.log(`[PIPELINE] Conversation marked as resolved. No action needed.`);
-        }
+            
+            // 3. The Guardrail (Is it legal/compliant to call them now?)
+            console.log(`[GUARDRAIL] Evaluating compliance for ${userId}...`);
+            const complianceCheck = await guardrail.checkCompliance(userId);
+            
+            console.log(`[GUARDRAIL] Status: ${complianceCheck.status} | Reason: ${complianceCheck.reason}`);
 
-        res.status(200).json({
-            success: true,
-            decision: decision.action,
-            reason: decision.reason
-        });
+            if (complianceCheck.allowed) {
+                // Execute Call
+                console.log(`[PIPELINE] Escalation approved & compliant. Triggering call...`);
+                const callRes = await kippsApi.triggerVoiceCall(userId, {
+                    reason: decision.reason,
+                    priority: decision.priorityScore
+                });
+                
+                // Log that we attempted a call to enforce frequency caps
+                await guardrail.logOutboundAttempt(userId);
+                
+                console.log(`[PIPELINE] Call queued successfully. ID: ${callRes.callId}`);
+            } else {
+                // Blocked or Queued by Guardrail
+                console.log(`[PIPELINE] Escalation halted by Guardrail.`);
+                // If status is QUEUED_FOR_WINDOW, we would push to our Redis Priority Queue here (Phase 4)
+            }
+
+            return res.status(200).json({
+                success: true,
+                decision: decision.action,
+                compliance: complianceCheck.status,
+                message: complianceCheck.reason
+            });
+
+        } else {
+            // RESOLVED or NEEDS_RETRY
+            return res.status(200).json({
+                success: true,
+                decision: decision.action,
+                message: decision.reason
+            });
+        }
 
     } catch (error) {
         console.error('[WEBHOOK] Error processing event:', error);
