@@ -13,7 +13,7 @@
 
 <!-- OFFICIAL LOGO -->
 <!-- ⚠️ REPLACE THIS SRC WITH YOUR ACTUAL LOGO PATH ⚠️ -->
-<img src="assets/GuardAI_logo.png" alt="GuardAI Logo" width="100" />
+<img src="output images/GuardAI_logo.png" alt="GuardAI Logo" width="100" />
 
 # GuardAI
 ### The Decision & Compliance Guardrail for Autonomous Chat-to-Voice Escalation
