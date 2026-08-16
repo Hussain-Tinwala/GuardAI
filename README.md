@@ -117,6 +117,11 @@ graph TD
 
 ## ⚙️ The n8n Workflow (Node-by-Node Breakdown)
 
+<div align="center">
+  <img src="GuardAI_n8n_workflow.png" alt="GuardAI Full n8n Orchestration Layer" width="100%" style="border-radius: 8px; border: 1px solid #444; box-shadow: 0 4px 14px rgba(0,0,0,0.2); margin-bottom: 20px;" />
+  <br/><em>The complete GuardAI orchestration layer mapping chat ingestion, compliance routing, and voice fallback.</em><br/><br/>
+</div>
+
 The entire orchestration layer was built using **n8n** to ensure visual observability and rapid iteration. Below is the exact execution path of a single customer interaction.
 
 ### Phase 1: Ingestion & Security
