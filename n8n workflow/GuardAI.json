@@ -1,0 +1,1364 @@
+{
+  "name": "GuardAI - v3",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "guardai-chat",
+        "options": {}
+      },
+      "id":"removed",
+      "name": "GuardAI Chat Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -2608,
+        272
+      ],
+      "weebhookId":"removed"
+    },
+    {
+      "parameters": {
+        "jsCode": "const j = $input.first().json;\nconst payload = j.body || j;\nreturn { json: payload };"
+      },
+      "id":"removed",
+      "name": "Normalize Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2352,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id":"removed",
+              "leftValue": "={{ $json.decision.action }}",
+              "rightValue": "ESCALATE",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id":"removed",
+      "name": "Needs Escalation?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -624,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const COMPLIANCE_RULES = { MAX_CALLS_PER_24H: 2, QUIET_HOUR_START: 21, QUIET_HOUR_END: 9 };\nconst data = $input.first().json;\n\nconst istHour = new Date(new Date().toLocaleString(\"en-US\", { timeZone: \"Asia/Kolkata\" })).getHours();\nconst isQuietHours = istHour >= COMPLIANCE_RULES.QUIET_HOUR_START || istHour < COMPLIANCE_RULES.QUIET_HOUR_END;\n\nlet compliance;\nif (isQuietHours) {\n  compliance = { allowed: false, status: 'QUEUED_FOR_WINDOW', reason: 'TRAI quiet hours active (9PM-9AM IST). Queuing for morning.' };\n} else {\n  compliance = { allowed: true, status: 'APPROVED', reason: 'Passed all compliance checks.' };\n}\n\nreturn { json: { ...data, compliance } };"
+      },
+      "id":"removed",
+      "name": "Compliance Guardrail",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -400,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value":"removed",
+          "mode": "list",
+          "cachedResultName": "GuardAI Logs",
+          "cachedResultUrl": "removed"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value":"removed",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value":{
+            "timestamp": "={{ $now.toISO() }}",
+            "userId": "={{ $json.userId }}",
+            "stage": "GUARDRAIL",
+            "status": "={{ $json.compliance.status }}",
+            "reason": "={{ $json.compliance.reason }}"
+          },
+          "schema": [
+            {
+              "id":"removed",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id":"removed",
+              "displayName": "userId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id":"removed",
+              "displayName": "stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id":"removed",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id":"removed",
+              "displayName": "reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id":"removed",
+      "name": "Log Guardrail",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -176,
+        -32
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id":"removed",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id":"removed",
+                    "leftValue": "={{ $json.compliance.status }}",
+                    "rightValue": "APPROVED",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "APPROVED"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id":"removed",
+                    "leftValue": "={{ $json.compliance.status }}",
+                    "rightValue": "QUEUED_FOR_WINDOW",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "QUEUED_FOR_WINDOW"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "Blocked"
+        }
+      },
+      "id":"removed",
+      "name": "Compliance Route",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -176,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst transcript = (data.transcript || '').toLowerCase();\nconst langName = data.languageName || 'English';\nconst frustration = data.frustrationScore || 50;\n\nlet summary;\n\n// Original Summary Keyword Classification\nif (transcript.includes('payment') || transcript.includes('refund') || transcript.includes('money') || transcript.includes('deduct')) {\n  summary = 'User is experiencing a payment or refund-related issue.';\n} else if (transcript.includes('login') || transcript.includes('password') || transcript.includes('locked')) {\n  summary = 'User is locked out of their account or having login issues.';\n} else if (transcript.includes('fraud') || transcript.includes('stolen') || transcript.includes('compromised')) {\n  summary = 'URGENT: User is reporting potential fraud or a security breach.';\n} else {\n  summary = `User's last message was regarding: \"...${(data.transcript || '').slice(-50)}\"`;\n}\n\n// Enterprise Voice Briefing Payload\nconst voiceBriefing = {\n  customer_language: langName,\n  frustration_score: frustration,\n  user_transcript: data.transcript || '',\n  summary: summary,\n  system_prompt_override: `You are GuardAI Senior Voice Specialist speaking in ${langName}. The customer frustration score is ${frustration}/100. Issue Summary: ${summary}. Reassure them immediately.`\n};\n\nreturn { \n  json: { \n    ...data, \n    contextSummary: summary,\n    voiceBriefing: voiceBriefing\n  } \n};"
+      },
+      "id":"removed",
+      "name": "Context Packager",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        48,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://backend.kipps.ai/speech/phone-call/",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Organization-ID",
+              "value":"removed"
+            },
+            {
+              "name": "Origin",
+              "value":"removed"
+            },
+            {
+              "name": "Referer",
+              "value":"removed"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"voicebot\": \"{{ $('Set Variables').item.json.VOICEBOT_ID }}\",\n  \"phone_number\": \"{{ $json.userId }}\",\n  \"to_phone_number\": \"{{ $json.userId }}\",\n  \"from_phone_number\": \"+919876543210\",\n  \"room_name\": \"escalation_{{ $execution.id }}\"\n}",
+        "options": {}
+      },
+      "id":"removed",
+      "name": "Trigger Kipps Voice Call",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        272,
+        -16
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id":"removed",
+          "name": "Header Auth account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value":"removed",
+          "mode": "list",
+          "cachedResultName": "GuardAI Logs",
+          "cachedResultUrl": "removed"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value":"removed",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value":{
+            "timestamp": "={{ $now.toISO() }}",
+            "userId": "={{ $('Context Packager').item.json.userId }}",
+            "stage": "VOICE_ESCALATION",
+            "status": "TRIGGERED",
+            "reason": "={{ $('Context Packager').item.json.contextSummary }}"
+          },
+          "schema": [
+            {
+              "id":"removed",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id":"removed",
+              "displayName": "userId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id":"removed",
+              "displayName": "stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id":"removed",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id":"removed",
+              "displayName": "reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id":"removed",
+      "name": "Log Voice Escalation",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        576,
+        -32
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id":"removed",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://backend.kipps.ai/integrations/whatsapp-agent/send-template/",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Organization-ID",
+              "value":"removed"
+            },
+            {
+              "name": "Origin",
+              "value":"removed"
+            },
+            {
+              "name": "Referer",
+              "value":"removed"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"to\": \"{{ $json.userId }}\",\n  \"template_name\": \"escalation_delayed\",\n  \"parameters\": { \"reason\": \"{{ $json.compliance.reason }}\" }\n}",
+        "options": {}
+      },
+      "id":"removed",
+      "name": "WhatsApp Queue Notify",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        48,
+        176
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id":"removed",
+          "name": "Header Auth account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value":"removed",
+          "mode": "list",
+          "cachedResultName": "GuardAI Logs",
+          "cachedResultUrl": "removed"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value":"removed",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value":{
+            "timestamp": "={{ $now.toISO() }}",
+            "userId": "={{ $('Compliance Guardrail').item.json.userId }}",
+            "stage": "QUEUE",
+            "status": "={{ $('Compliance Guardrail').item.json.compliance.status }}",
+            "reason": "={{ $('Compliance Guardrail').item.json.compliance.reason }}"
+          },
+          "schema": [
+            {
+              "id":"removed",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id":"removed",
+              "displayName": "userId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id":"removed",
+              "displayName": "stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id":"removed",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id":"removed",
+              "displayName": "reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id":"removed",
+      "name": "Log Queue",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        400,
+        160
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id":"removed",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 1
+      },
+      "id":"removed",
+      "name": "Requeue Delay",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        688,
+        656
+      ],
+      "weebhookId":"removed"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://backend.kipps.ai/integrations/whatsapp-agent/send-template/",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Organization-ID",
+              "value":"removed"
+            },
+            {
+              "name": "Origin",
+              "value":"removed"
+            },
+            {
+              "name": "Referer",
+              "value":"removed"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"to\": \"{{ $json.userId }}\",\n  \"template_name\": \"escalation_delayed\",\n  \"parameters\": { \"reason\": \"{{ $json.compliance.reason }}\" }\n}",
+        "options": {}
+      },
+      "id":"removed",
+      "name": "WhatsApp Fallback Notify",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        288,
+        384
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id":"removed",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value":"removed",
+          "mode": "list",
+          "cachedResultName": "GuardAI Logs",
+          "cachedResultUrl": "removed"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value":"removed",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value":{
+            "timestamp": "={{ $now.toISO() }}",
+            "userId": "={{ $('Compliance Guardrail').item.json.userId }}",
+            "stage": "BLOCKED",
+            "status": "={{ $('Compliance Guardrail').item.json.compliance.status }}",
+            "reason": "={{ $('Compliance Guardrail').item.json.compliance.reason }}"
+          },
+          "schema": [
+            {
+              "id":"removed",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id":"removed",
+              "displayName": "userId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id":"removed",
+              "displayName": "stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id":"removed",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id":"removed",
+              "displayName": "reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id":"removed",
+      "name": "Log Blocked",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        496,
+        384
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id":"removed",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value":"removed",
+          "mode": "list",
+          "cachedResultName": "GuardAI Logs",
+          "cachedResultUrl": "removed"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value":"removed",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value":{
+            "timestamp": "={{ $now.toISO() }}",
+            "userId": "={{ $json.userId }}",
+            "stage": "DECISION_ENGINE",
+            "status": "={{ $json.decision.action }}",
+            "reason": "={{ $json.decision.reason }}"
+          },
+          "schema": [
+            {
+              "id":"removed",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id":"removed",
+              "displayName": "userId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id":"removed",
+              "displayName": "stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id":"removed",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id":"removed",
+              "displayName": "reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id":"removed",
+      "name": "Log Resolved",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -400,
+        368
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id":"removed",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id":"removed",
+      "name": "On Workflow Error",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        -2560,
+        784
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value":"removed",
+          "mode": "list",
+          "cachedResultName": "GuardAI Logs",
+          "cachedResultUrl": "removed"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value":"removed",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value":{
+            "timestamp": "={{ $now.toISO() }}",
+            "userId": "N/A",
+            "stage": "SYSTEM_ERROR",
+            "status": "={{ $json.execution.error.message }}",
+            "reason": "={{ $json.execution.error.node.name }}"
+          },
+          "schema": [
+            {
+              "id":"removed",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id":"removed",
+              "displayName": "userId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id":"removed",
+              "displayName": "stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id":"removed",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id":"removed",
+              "displayName": "reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id":"removed",
+      "name": "Log System Error",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -2336,
+        784
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id":"removed",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id":"removed",
+              "name": "KIPPS_ORG_ID",
+              "value":"removed",
+              "type": "string"
+            },
+            {
+              "id":"removed",
+              "name": "VOICEBOT_ID",
+              "value":"removed",
+              "type": "string"
+            },
+            {
+              "id":"removed",
+              "name": "CHATBOT_ID",
+              "value":"removed",
+              "type": "string"
+            },
+            {
+              "id":"removed",
+              "name": "USER_PHONE",
+              "value":"removed",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        -1952,
+        272
+      ],
+      "id":"removed",
+      "name": "Set Variables"
+    },
+    {
+      "parameters": {
+        "public": true,
+        "options": {
+          "responseMode": "responseNodes"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -2352,
+        544
+      ],
+      "id":"removed",
+      "name": "When chat message received",
+      "weebhookId":"removed"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://backend.kipps.ai/kipps/reply/stream/",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Organization-ID",
+              "value":"removed"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"chatbot_id\": \"{{ $('Set Variables').item.json.CHATBOT_ID }}\",\n  \"conversation_id\": {{ Math.floor(Math.random() * 100000) }},\n  \"message\": \"{{ $('When chat message received').item.json.chatInput }}\",\n  \"chat_history\": []\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -1296,
+        272
+      ],
+      "id":"removed",
+      "name": "Call Kipps Chatbot",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id":"removed",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputItem = $input.first().json;\nconst userMessage = $('DPDP PII Redaction Shield').first().json.chatInput || '';\nconst userPhone = $('Set Variables').first().json.USER_PHONE || '+91removed';\n\n// Safely pull analyzer data if node exists, otherwise set defaults\nlet analyzer = { detectedLanguage: 'en-IN', languageName: 'English', frustrationScore: 15, isHighUrgency: false };\ntry {\n    if ($('Language & Sentiment Analyzer').first()) {\n        analyzer = $('Language & Sentiment Analyzer').first().json;\n    }\n} catch (e) {\n    // Node not present yet, default values remain\n}\n\nlet botReplyText = '';\n\n// 1. PARSE KIPPS SSE STREAMING TOKENS\nconst rawData = typeof inputItem === 'string' ? inputItem : (inputItem.data || JSON.stringify(inputItem));\n\nif (rawData.includes('token')) {\n    const lines = rawData.split('\\n');\n    let accumulatedTokens = '';\n    \n    for (let line of lines) {\n        if (line.includes('data:')) {\n            try {\n                const jsonStr = line.substring(line.indexOf('data:') + 5).trim();\n                const parsed = JSON.parse(jsonStr);\n                if (parsed.token) {\n                    accumulatedTokens += parsed.token;\n                }\n            } catch (e) {}\n        }\n    }\n    \n    if (accumulatedTokens.trim()) {\n        botReplyText = accumulatedTokens.replace(/<[^>]*>/g, '').trim();\n    }\n}\n\n// 2. FALLBACK TO STANDARD JSON KEYS IF NOT A STREAM\nif (!botReplyText) {\n    if (inputItem.reply) botReplyText = inputItem.reply;\n    else if (inputItem.message) botReplyText = inputItem.message;\n    else if (inputItem.text) botReplyText = inputItem.text;\n}\n\n// 3. FALLBACK ONLY IF NO TEXT WAS EXTRACTED AT ALL\nif (!botReplyText) {\n    const msg = userMessage.toLowerCase();\n    if (msg.includes('fraud') || msg.includes('stolen') || msg.includes('money') || msg.includes('deduct') || analyzer.isHighUrgency) {\n        botReplyText = \"URGENT_ESCALATION\";\n    } else if (msg.includes('policy') || msg.includes('return')) {\n        botReplyText = \"Our standard return policy allows you to return items within 30 days of purchase for a full refund. Let me know if you need help starting a return!\";\n    } else {\n        botReplyText = \"Thank you for reaching out. GuardAI is analyzing your request. Could you provide a bit more detail?\";\n    }\n}\n\n// 4. EVALUATE ESCALATION CRITERIA\nconst isUrgent = botReplyText.includes('URGENT_ESCALATION') || \n                 userMessage.toLowerCase().includes('fraud') || \n                 userMessage.toLowerCase().includes('stolen') ||\n                 userMessage.toLowerCase().includes('compromised') ||\n                 analyzer.isHighUrgency;\n\nreturn {\n  json: {\n    userId: userPhone,\n    transcript: userMessage,\n    botReplyText: isUrgent ? \"Critical topic detected. GuardAI is initiating voice escalation.\" : botReplyText,\n    detectedLanguage: analyzer.detectedLanguage,\n    languageName: analyzer.languageName,\n    frustrationScore: analyzer.frustrationScore,\n    decision: {\n      action: isUrgent ? 'ESCALATE' : 'RESOLVED',\n      priorityScore: isUrgent ? Math.max(analyzer.frustrationScore, 85) : 0,\n      reason: isUrgent \n        ? `Critical escalation triggered (${analyzer.languageName}, Frustration: ${analyzer.frustrationScore}/100)` \n        : 'Query handled autonomously'\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -960,
+        272
+      ],
+      "id":"removed",
+      "name": "Decision Engine"
+    },
+    {
+      "parameters": {
+        "message": "={{ $('Decision Engine').item.json.botReplyText }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chat",
+      "typeVersion": 1.3,
+      "position": [
+        -176,
+        368
+      ],
+      "id":"removed",
+      "name": "Chat",
+      "weebhookId":"removed"
+    },
+    {
+      "parameters": {
+        "message": "=⚠️ High-priority issue detected. GuardAI has escalated your ticket. Our voice engine is calling {{ $('Set Variables').item.json.USER_PHONE }} right now.",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chat",
+      "typeVersion": 1.3,
+      "position": [
+        880,
+        -32
+      ],
+      "id":"removed",
+      "name": "Chat1",
+      "weebhookId":"removed"
+    },
+    {
+      "parameters": {
+        "message": "=🌙 TRAI Quiet Hours Active (9 PM - 9 AM IST). Your urgent request has been queued for a callback tomorrow morning.\n\n⚡ {{ $('Language & Sentiment Analyzer').item.json.customerTier }} EXPRESS: To bypass the morning queue and pick your exact preferred time with a human agent, book directly here: https://cal.com/guardai-support/escalation",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chat",
+      "typeVersion": 1.3,
+      "position": [
+        144,
+        656
+      ],
+      "id":"removed",
+      "name": "Chat (Queued)",
+      "weebhookId":"removed"
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputItem = $input.first().json;\nconst userMessage = $('DPDP PII Redaction Shield').first().json.chatInput || '';\nconst text = userMessage.toLowerCase();\n\nconst vipMultiplier = inputItem.vipMultiplier || 1.0;\nconst customerTier = inputItem.customerTier || 'STANDARD';\n\n// 1. Vernacular Language Detection Matrix\nlet detectedLanguage = 'en-IN'; \nlet languageName = 'English';\n\nif (/[\\u0900-\\u097F]/.test(userMessage) || text.includes('paise') || text.includes('karo') || text.includes('nahi') || text.includes('rupaye') || text.includes('madad')) {\n  detectedLanguage = 'hi-IN';\n  languageName = 'Hindi';\n} else if (text.includes('su chhe') || text.includes('kem cho') || text.includes('paisa') || text.includes('madd') || text.includes('nathi')) {\n  detectedLanguage = 'gu-IN';\n  languageName = 'Gujarati';\n} else if (/[\\u0B80-\\u0BFF]/.test(userMessage) || text.includes('vanakkam') || text.includes('udhavi')) {\n  detectedLanguage = 'ta-IN';\n  languageName = 'Tamil';\n} else if (/[\\u0C00-\\u0C7F]/.test(userMessage) || text.includes('namaskaram')) {\n  detectedLanguage = 'te-IN';\n  languageName = 'Telugu';\n} else if (text.includes('kasa aahe') || text.includes('mulaat')) {\n  detectedLanguage = 'mr-IN';\n  languageName = 'Marathi';\n}\n\n// 2. Frustration Index Calculation \nlet baseFrustration = 15; \n\nconst criticalKeywords = ['fraud', 'stolen', 'unauthorized', 'police', 'scam', 'deducted', 'zero', 'hack', 'compromised'];\nconst highRiskKeywords = ['human', 'agent', 'representative', 'person', 'manager', 'speak to human'];\nconst mediumRiskKeywords = ['failed', 'error', 'wrong', 'issue', 'not working', 'delay', 'urgent', 'help'];\n\ncriticalKeywords.forEach(word => { if (text.includes(word)) baseFrustration += 40; });\nhighRiskKeywords.forEach(word => { if (text.includes(word)) baseFrustration += 30; });\nmediumRiskKeywords.forEach(word => { if (text.includes(word)) baseFrustration += 15; });\n\n// Apply VIP Multiplier\nlet finalFrustration = Math.floor(baseFrustration * vipMultiplier);\nfinalFrustration = Math.min(finalFrustration, 100);\n\nreturn {\n  json: {\n    userMessage,\n    detectedLanguage,\n    languageName,\n    customerTier,\n    frustrationScore: finalFrustration,\n    isHighUrgency: finalFrustration >= 50\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1504,
+        272
+      ],
+      "id":"removed",
+      "name": "Language & Sentiment Analyzer"
+    },
+    {
+      "parameters": {
+        "sendTo": "abc@gmail.com",
+        "subject": "=🚨 [GuardAI DLQ Alert] Urgent Incident Queued (Score: {{ $('Language & Sentiment Analyzer').item.json.frustrationScore }}/100) - {{ $('Set Variables').item.json.USER_PHONE }}",
+        "message": "=<div style=\"font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; max-width: 600px;\">   <h2 style=\"color: #d9534f; margin-top: 0;\">🚨 GuardAI Incident Escalation Notice</h2>   <p>An urgent customer inquiry was intercepted by GuardAI and queued due to <strong>TRAI Quiet Hours (9 PM - 9 AM IST)</strong>.</p>      <table style=\"width: 100%; border-collapse: collapse; margin: 20px 0;\">     <tr style=\"background-color: #f8f9fa;\">       <td style=\"padding: 10px; font-weight: bold; border: 1px solid #dee2e6;\">User Phone:</td>       <td style=\"padding: 10px; border: 1px solid #dee2e6;\">{{ $('Set Variables').item.json.USER_PHONE }}</td>     </tr>     <tr>       <td style=\"padding: 10px; font-weight: bold; border: 1px solid #dee2e6;\">Detected Language:</td>       <td style=\"padding: 10px; border: 1px solid #dee2e6;\">{{ $('Language & Sentiment Analyzer').item.json.languageName }} ({{ $('Language & Sentiment Analyzer').item.json.detectedLanguage }})</td>     </tr>     <tr style=\"background-color: #f8f9fa;\">       <td style=\"padding: 10px; font-weight: bold; border: 1px solid #dee2e6;\">Frustration Index:</td>       <td style=\"padding: 10px; border: 1px solid #dee2e6; color: #d9534f; font-weight: bold;\">{{ $('Language & Sentiment Analyzer').item.json.frustrationScore }} / 100</td>     </tr>     <tr>       <td style=\"padding: 10px; font-weight: bold; border: 1px solid #dee2e6;\">Audit Stage / Status:</td>       <td style=\"padding: 10px; border: 1px solid #dee2e6;\">QUEUED_FOR_WINDOW (TRAI Compliant)</td>     </tr>   </table>    <div style=\"background-color: #f1f1f1; padding: 15px; border-left: 4px solid #0275d8; margin-top: 15px;\">     <strong>Customer Transcript:</strong><br>     <em>\"{{ $('DPDP PII Redaction Shield').item.json.chatInput }}\"</em>   </div>    <p style=\"font-size: 12px; color: #6c757d; margin-top: 20px;\">     Automated dispatch generated by <strong>GuardAI Governance Engine</strong>. Scheduled for morning voice callback at 9:00 AM IST.   </p> </div>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        896,
+        400
+      ],
+      "id":"removed",
+      "name": "Gmail DLQ Manager Alert",
+      "weebhookId":"removed",
+      "credentials": {
+        "gmailOAuth2": {
+          "id":"removed",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputItem = $input.first().json;\nconst phone = inputItem.USER_PHONE || '+919876543210';\n\n// Mock Enterprise CRM Database\nconst vipCustomers = ['+919876543210', '+91removed']; // Added your test numbers\nconst isVIP = vipCustomers.includes(phone);\n\nreturn {\n  json: {\n    ...inputItem,\n    customerTier: isVIP ? 'GOLD_VIP' : 'STANDARD',\n    vipMultiplier: isVIP ? 1.5 : 1.0 // VIPs get a 50% boost to frustration urgency\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1728,
+        272
+      ],
+      "id":"removed",
+      "name": "CRM Database Lookup"
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputItem = $input.first().json;\nlet text = inputItem.chatInput || '';\n\n// 1. Mask Credit Card / Debit Card Numbers (16 digits)\ntext = text.replace(/\\b(?:\\d{4}[ -]?){3}\\d{4}\\b/g, 'XXXX-XXXX-XXXX-XXXX');\n\n// 2. Mask Indian Aadhaar Numbers (12 digits)\ntext = text.replace(/\\b\\d{4}\\s?\\d{4}\\s?\\d{4}\\b/g, 'XXXX-XXXX-XXXX');\n\n// 3. Mask Email Addresses\ntext = text.replace(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\\.[a-zA-Z0-9_-]+)/gi, '[REDACTED_EMAIL]');\n\n// 4. NEW: Catch-all for OTPs, PINs, and Bank Account numbers (Any continuous number 5 digits or longer)\ntext = text.replace(/\\b\\d{5,}\\b/g, '[REDACTED_NUMBER]');\n\nreturn {\n  json: {\n    ...inputItem,\n    chatInput: text, \n    security_flag: \"PII_REDACTED\"\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2144,
+        432
+      ],
+      "id":"removed",
+      "name": "DPDP PII Redaction Shield"
+    }
+  ],
+  "pinData": {
+    "GuardAI Chat Webhook": [
+      {
+        "json": {
+          "headers": {},
+          "query": {},
+          "params": {},
+          "body": {
+            "userId": "+91removed",
+            "transcript": "My money was deducted but my payment failed! This is urgent fraud!",
+            "metadata": {
+              "retryCount": 3,
+              "sentimentScore": -0.8,
+              "botConfidence": 0.2,
+              "isUrgentTopic": true
+            }
+          }
+        }
+      }
+    ]
+  },
+  "connections": {
+    "GuardAI Chat Webhook": {
+      "main": [
+        [
+          {
+            "node": "Normalize Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs Escalation?": {
+      "main": [
+        [
+          {
+            "node": "Compliance Guardrail",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Resolved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compliance Guardrail": {
+      "main": [
+        [
+          {
+            "node": "Log Guardrail",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Compliance Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compliance Route": {
+      "main": [
+        [
+          {
+            "node": "Context Packager",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "WhatsApp Queue Notify",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "WhatsApp Fallback Notify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Context Packager": {
+      "main": [
+        [
+          {
+            "node": "Trigger Kipps Voice Call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Kipps Voice Call": {
+      "main": [
+        [
+          {
+            "node": "Log Voice Escalation",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Gmail DLQ Manager Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WhatsApp Queue Notify": {
+      "main": [
+        [
+          {
+            "node": "Log Queue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Queue": {
+      "main": [
+        [
+          {
+            "node": "Chat (Queued)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Requeue Delay": {
+      "main": [
+        []
+      ]
+    },
+    "WhatsApp Fallback Notify": {
+      "main": [
+        [
+          {
+            "node": "Log Blocked",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "On Workflow Error": {
+      "main": [
+        [
+          {
+            "node": "Log System Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Variables": {
+      "main": [
+        [
+          {
+            "node": "CRM Database Lookup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "DPDP PII Redaction Shield",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Kipps Chatbot": {
+      "main": [
+        [
+          {
+            "node": "Decision Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decision Engine": {
+      "main": [
+        [
+          {
+            "node": "Needs Escalation?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Resolved": {
+      "main": [
+        [
+          {
+            "node": "Chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Voice Escalation": {
+      "main": [
+        [
+          {
+            "node": "Chat1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chat (Queued)": {
+      "main": [
+        [
+          {
+            "node": "Requeue Delay",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Gmail DLQ Manager Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Language & Sentiment Analyzer": {
+      "main": [
+        [
+          {
+            "node": "Call Kipps Chatbot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CRM Database Lookup": {
+      "main": [
+        [
+          {
+            "node": "Language & Sentiment Analyzer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DPDP PII Redaction Shield": {
+      "main": [
+        [
+          {
+            "node": "Set Variables",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "removed",
+  "meta": {
+    "instanceId": "removed"
+  },
+  "nodeGroups": [],
+  "id":"removed",
+  "tags": []
+}

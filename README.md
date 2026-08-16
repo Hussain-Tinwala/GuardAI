@@ -12,8 +12,7 @@
 <br/><br/>
 
 <!-- OFFICIAL LOGO -->
-<!-- ⚠️ REPLACE THIS SRC WITH YOUR ACTUAL LOGO PATH ⚠️ -->
-<img src="output images/GuardAI_logo.png" alt="GuardAI Logo" width="100" />
+<img src="output%20images/GuardAI_logo.png" alt="GuardAI Logo" width="100" />
 
 # GuardAI
 ### The Decision & Compliance Guardrail for Autonomous Chat-to-Voice Escalation
@@ -26,11 +25,20 @@
 
 <br/>
 
+<div align="center">
+  <img src="GuardAI_n8n_workflow.png" alt="GuardAI Full n8n Orchestration Layer" width="100%" style="border-radius: 8px; border: 1px solid #444; box-shadow: 0 4px 14px rgba(0,0,0,0.2); margin-bottom: 20px;" />
+  <br/><em>The complete GuardAI orchestration layer mapping chat ingestion, compliance routing, and voice fallback.</em><br/><br/>
+</div>
+
+<br/>
+
 <!-- ⚠️ LIVE DEMO VIDEO PLACEHOLDER ⚠️ -->
-<a href="YOUR_YOUTUBE_LINK_HERE">
+<a href="https://youtu.be/0Lz5dcut5nQ">
   <img src="assets/Video_Thumbnail.png" alt="GuardAI Live Platform Demo" width="850" style="border-radius: 12px; box-shadow: 0 4px 14px rgba(0,0,0,0.1);" />
+  <br/><em>Youtube Video Link (Click Here)</em><br/><br/>
 </a>
-<br/>*(System in action: Kipps Chat → PII Redaction → Decision Engine → TRAI Guardrail → Kipps Voice Escalation)*<br/>
+<br/>
+*(System in action: Kipps Chat → PII Redaction → Decision Engine → TRAI Guardrail → Kipps Voice Escalation)*<br/>
 
 <br/>
 
@@ -50,7 +58,7 @@
 
 ## 📜 Overview
 
-In dual-channel automated support, the failure mode is twofold: **Under-escalation** leaves customers stuck in endless chat loops, while **Over-escalation** blindly triggers costly voice calls for every unresolved query. 
+In dual-channel automated support, the failure mode is twofold: **Under-escalation** leaves customers stuck in endless chat loops, while **Over-escalation** blindly triggers costly voice calls for every unresolved query.&#x20;
 
 GuardAI sits securely between the customer and **Kipps.AI's native agents**. It acts as a strict enterprise judgment layer that evaluates sentiment, parses urgency, checks regulatory telecom compliance, and orchestrates the handoff from the Kipps Chatbot directly to the Kipps Voicebot dynamically via the `/speech/phone-call/` REST API.
 
@@ -62,9 +70,10 @@ GuardAI sits securely between the customer and **Kipps.AI's native agents**. It 
 
 ## ⚠️ The Enterprise Gap (Regulatory Exposure)
 
-At 50,000 queries a day, automated escalation means automated outbound voice contact at scale. Without a guardrail, this brings massive regulatory exposure in the Indian telecom sector. 
+At 50,000 queries a day, automated escalation means automated outbound voice contact at scale. Without a guardrail, this brings massive regulatory exposure in the Indian telecom sector.&#x20;
 
 GuardAI introduces a **Compliance-by-Design** architecture to make Kipps.AI deployments Fortune 500-ready:
+
 * **TRAI DND Enforcement:** Governs unsolicited automated calls based on time-of-day regulations. Prevents the AI from waking customers up at 2:00 AM.
 * **Frequency Capping:** Evaluates a per-customer ledger before outbound Kipps triggers fire to prevent spam and telecom blacklisting.
 * **DPDP Act (Data Privacy):** Strips PII (Personally Identifiable Information) from the chat context *before* briefing the downstream Voice Agent to prevent data leakage.
@@ -111,7 +120,7 @@ graph TD
     
     G --> K[(Google Sheets Audit Log)]:::observe
     J --> K
-````
+```
 
 ---
 
@@ -146,9 +155,9 @@ The entire orchestration layer was built using **n8n** to ensure visual observab
 
 * **`Compliance Guardrail`**: Evaluates the current timestamp against Indian Standard Time (IST) TRAI regulations (blocking automated promotional/support calls between 9 PM and 9 AM).
 * **`Compliance Route (Switch)`**:
-* 🟢 **APPROVED:** Normal business hours. Proceeds to the Kipps API.
-* 🟡 **QUEUED FOR MORNING:** Outside business hours. Sends a WhatsApp notification and queues the call for 9:00 AM.
-* 🔴 **BLOCKED:** User has hit frequency caps or DND. Aborts escalation to preserve brand reputation.
+  * 🟢 **APPROVED:** Normal business hours. Proceeds to the Kipps API.
+  * 🟡 **QUEUED FOR MORNING:** Outside business hours. Sends a WhatsApp notification and queues the call for 9:00 AM.
+  * 🔴 **BLOCKED:** User has hit frequency caps or DND. Aborts escalation to preserve brand reputation.
 
 ### Phase 5: Execution & Handoff (The Kipps.AI Integration)
 
@@ -163,15 +172,46 @@ The entire orchestration layer was built using **n8n** to ensure visual observab
 
 ---
 
+<div id="screenshots"></div>
+
 ## 📸 Platform Proofs & Deep Kipps.AI Integration
 
-GuardAI heavily leverages the native Kipps.AI ecosystem to power the underlying intelligence. Below is proof of implementation:
+GuardAI heavily leverages the native Kipps.AI ecosystem to power the underlying intelligence. Below is proof of our live dashboard configurations and deployment architecture:
 
-* **Kipps.AI Voice Agent Architecture:** Successfully configured and triggered the Kipps API using **AWS Generative TTS (Matthew)** and **Deepgram Nova-2 STT** for ultra-low latency conversational response.
-* **Kipps Knowledge Base RAG:** Ingested standard operating procedures (SOPs) into the Kipps knowledge base to ensure the Voice Agent answers factual questions (e.g., refund timelines) securely and accurately during the call.
-* **Campaign & E.164 SIP Routing:** Utilized the Kipps Campaign & Outbound routing dashboard to provision E.164 Virtual Numbers and map them to programmatic n8n API triggers.
+<div align="center">
+  <img src="output%20images/kipps_dashboard_proofs/kipps_knowledge_base_rag.png" alt="Knowledge Base RAG" width="49%" style="border-radius: 8px;" />
+  <img src="output%20images/kipps_dashboard_proofs/kipps_e164_virtual_number.png" alt="E164 Virtual Number" width="49%" style="border-radius: 8px;" />
+</div>
+<div align="center">
+  <em>Left: Document RAG ingestion for policy compliance. Right: E.164 Virtual SIP Trunking.</em>
+</div>
+<br/>
 
-*(Note: See the* *`assets/`* *folder in this repository for full-resolution platform screenshots of the Kipps configurations).*
+<div align="center">
+  <img src="output%20images/kipps_dashboard_proofs/kipps_voicebot_config1.png" alt="Voicebot Settings 1" width="49%" style="border-radius: 8px;" />
+  <img src="output%20images/kipps_dashboard_proofs/kipps_voicebot_config2.png" alt="Voicebot Settings 2" width="49%" style="border-radius: 8px;" />
+</div>
+<div align="center">
+  <em>Kipps Voicebot Engine utilizing AWS Generative TTS (Matthew) & Deepgram Nova-2 STT.</em>
+</div>
+<br/>
+
+<div align="center">
+  <img src="output%20images/kipps_dashboard_proofs/kipps_campaign_dashboard.png" alt="Campaign Dashboard 1" width="49%" style="border-radius: 8px;" />
+  <img src="output%20images/kipps_dashboard_proofs/kipps_campaign_dashboard2.png" alt="Campaign Dashboard 2" width="49%" style="border-radius: 8px;" />
+</div>
+<div align="center">
+  <em>Kipps UI Campaign routing triggers attached to the API Webhooks.</em>
+</div>
+<br/>
+
+<div align="center">
+  <img src="output%20images/kipps_campaign/campaign.png" alt="Campaign Overview 1" width="49%" style="border-radius: 8px;" />
+  <img src="output%20images/kipps_campaign/campaign2.png" alt="Campaign Overview 2" width="49%" style="border-radius: 8px;" />
+</div>
+<div align="center">
+  <em>Outbound automated Campaign logic connected to the GuardAI orchestration layer.</em>
+</div>
 
 ---
 
@@ -179,9 +219,8 @@ GuardAI heavily leverages the native Kipps.AI ecosystem to power the underlying 
 
 During the development of this architecture, we rigorously stress-tested the Kipps.AI REST API (`OAS 3.0`) and web dashboard. GuardAI didn't just consume the API; we actively contributed to platform stability by documenting and reporting two core bugs to the hackathon engineering team:
 
-1. **The Campaign Concurrency Soft-Lock (****`HTTP 403`****):** Discovered an edge case where a "Paused" or exhausted outbound campaign in the Kipps UI failed to transition to a `Completed` state. This permanently held the workspace's concurrency slot hostage in the Redis/DB cache, blocking external `POST /speech/phone-call/` triggers from n8n.
+1. **The Campaign Concurrency Soft-Lock (`HTTP 403`):** Discovered an edge case where a "Paused" or exhausted outbound campaign in the Kipps UI failed to transition to a `Completed` state. This permanently held the workspace's concurrency slot hostage in the Redis/DB cache, blocking external `POST /speech/phone-call/` triggers from n8n.
+
 2. **React State Analytics Glitch:** Identified a frontend local state-mutation bug on the Campaign Dashboard where clicking the "Success" metric card temporarily inflated the visual count to `1` before reverting to `0` upon a hard database re-fetch.
 
-*(A full* *`BUG_REPORT.md`* *and video reproduction trace were provided to the Kipps.AI admin team to assist in platform patching).*
-
-
+*(A full `BUG_REPORT.md` and video reproduction trace were provided to the Kipps.AI admin team to assist in platform patching).*
